@@ -1,0 +1,7 @@
+Carthage
+build
+*.xcodeproj/*.mode*
+*.xcodeproj/*.pbxuser
+*.xcodeproj/xcuserdata
+*.xcodeproj/project.xcworkspace
+*.xcworkspace/xcuserdata⏎                                                                                                                                     kevin@Willow ~/D/Schoolyard>

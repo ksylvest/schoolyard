@@ -1,0 +1,97 @@
+version: 2
+
+jobs:
+  build:
+    macos:
+      xcode: "9.4.0"
+    environment:
+      BUNDLE_JOBS: 4
+      BUNDLE_RETRY: 4
+      BUNDLE_PATH: vendor/bundle
+      CARTHAGE_PLATFORM: iOS
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      SCAN_DEVICE: iPhone X
+      SCAN_OUTPUT_DIRECTORY: results
+      SCAN_OUTPUT_FILES: scan.xml
+      SCAN_OUTPUT_TYPES: junit
+      SWIFTLINT_OUTPUT_FILE: results/swiftlint.xml
+      SWIFTLINT_REPORTER: junit
+
+    shell: /bin/bash --login -o pipefail
+
+    steps:
+      - checkout
+
+      # Homebrew
+      -
+        type: cache-restore
+        keys:
+          - homebrew-{{ arch }}-{{ .Branch }}-{{.Revision}}
+          - homebrew-{{ arch }}-{{ .Branch }}
+          - homebrew-{{ arch }}
+      -
+        run:
+          name: Homebrew
+          command: brew install swiftlint
+      -
+        type: cache-save
+        key: homebrew-{{ arch }}-{{ .Branch }}-{{.Revision}}
+        paths:
+          - ~/Library/Caches/Homebrew
+
+      # Bundler
+      -
+        type: cache-restore
+        keys:
+          - bundle-{{ checksum "Gemfile.lock" }}
+      -
+        run:
+          name: Bundler
+          command: bundle check || bundle install
+      -
+        type: cache-save
+        key: bundle-{{ checksum "Gemfile.lock" }}
+        paths:
+          - vendor/bundle
+
+      # Carthage
+      -
+        type: cache-restore
+        keys:
+          - carthage-{{ checksum "Cartfile.resolved" }}
+      -
+        run:
+          name: Carthage
+          command: if [ ! -d Carthage/Build ]; then carthage bootstrap --platform $CARTHAGE_PLATFORM; fi
+      -
+        type: cache-save
+        key: carthage-{{ checksum "Cartfile.resolved" }}
+        paths:
+          - Carthage/Build
+
+      # Lint
+      -
+        run:
+          name: Lint
+          command: bin/fastlane lint
+
+      # Scan
+      -
+        type: cache-restore
+        keys:
+          - xcode-derived-data-{{ arch }}-{{ .Branch }}-{{.Revision}}
+          - xcode-derived-data-{{ arch }}-{{ .Branch }}
+          - xcode-derived-data-{{ arch }}
+      -
+        run:
+          name: Scan
+          command: bin/fastlane scan
+      -
+        type: cache-save
+        key: xcode-derived-data-{{ arch }}-{{ .Branch }}-{{.Revision}}
+        paths:
+          - ~/Library/Developer/Xcode/DerivedData
+
+      # Results
+      - store_test_results:
+          path: results
